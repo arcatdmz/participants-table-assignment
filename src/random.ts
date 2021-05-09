@@ -16,6 +16,7 @@ const participantData: [string, ParticipantCategories][] = [
   ["src1025", "grad"],
   ["src1008", "grad"],
 ];
+const ignoredPairs = [["src1017", "src1062"]];
 const initialAssignments: [string, number][] = [
   ["src1061", 1],
   ["src1029", 1],
@@ -25,7 +26,7 @@ const initialAssignments: [string, number][] = [
   ["src1049", 2],
   ["src1051", 2],
   ["src1017", 3],
-  ["src1062", 3],
+  ["src1062", 2],
   ["src1025", 3],
   ["src1008", 3],
 ];
@@ -132,13 +133,28 @@ function evaluateAssignment({ participants }: { participants: Participant[] }) {
 
 function countUnmetsScore(participants: Participant[]) {
   return participants.reduce(
-    (p, c) =>
-      p + participants.filter((p_) => p_ !== c && !p_.met.has(c)).length,
+    (p, c) => p + countUnmetsScoreForParticipant(participants, c),
     0
   );
 }
 
-const attempts = 10000000;
+function countUnmetsScoreForParticipant(
+  participants: Participant[],
+  participant: Participant
+) {
+  return participants.filter(
+    (p) =>
+      p !== participant &&
+      !p.met.has(participant) &&
+      !ignoredPairs.find(
+        ([a, b]) =>
+          (p.id === a && participant.id === b) ||
+          (p.id === b && participant.id === a)
+      )
+  ).length;
+}
+
+const attempts = 1000000;
 let score = Math.pow(participantData.length, 2);
 let assignment: { rooms: Room[]; participants: Participant[] };
 for (let i = 0; i < attempts; i++) {
@@ -150,7 +166,10 @@ for (let i = 0; i < attempts; i++) {
     assignment = currentAssignment;
     score = currentScore;
   }
-  if (i % 1000000 === 0) {
+  if (score <= 0) {
+    break;
+  }
+  if (i % 100000 === 0) {
     log("current score: %d", score);
   }
 }
@@ -190,27 +209,27 @@ for (const p of assignment.participants) {
 //
 // room 1 assignments:
 // ["src1061","src1029","src1036","src1050"]
-// ["src1051","src1025","src1008"]
-// ["src1061","src1029","src1049","src1062"]
+// ["src1029","src1050","src1049","src1017"]
+// ["src1061","src1036","src1049","src1017"]
 //
 // room 2 assignments:
-// ["src1048","src1049","src1051"]
-// ["src1061","src1029","src1048","src1017"]
-// ["src1036","src1050","src1051","src1017"]
+// ["src1048","src1049","src1051","src1062"]
+// ["src1048","src1051","src1008"]
+// ["src1029","src1050","src1062"]
 //
 // room 3 assignments:
-// ["src1017","src1062","src1025","src1008"]
-// ["src1036","src1050","src1049","src1062"]
-// ["src1048","src1025","src1008"]
+// ["src1017","src1025","src1008"]
+// ["src1061","src1036","src1062","src1025"]
+// ["src1048","src1051","src1025","src1008"]
 //
-// participant src1061 assigned to: ["1","2","1"] with unmets: []
-// participant src1029 assigned to: ["1","2","1"] with unmets: []
-// participant src1036 assigned to: ["1","3","2"] with unmets: []
-// participant src1050 assigned to: ["1","3","2"] with unmets: []
+// participant src1061 assigned to: ["1","3","1"] with unmets: []
+// participant src1029 assigned to: ["1","1","2"] with unmets: []
+// participant src1036 assigned to: ["1","3","1"] with unmets: []
+// participant src1050 assigned to: ["1","1","2"] with unmets: []
 // participant src1048 assigned to: ["2","2","3"] with unmets: []
-// participant src1049 assigned to: ["2","3","1"] with unmets: ["src1017"]
-// participant src1051 assigned to: ["2","1","2"] with unmets: []
-// participant src1017 assigned to: ["3","2","2"] with unmets: ["src1049"]
-// participant src1062 assigned to: ["3","3","1"] with unmets: []
-// participant src1025 assigned to: ["3","1","3"] with unmets: []
-// participant src1008 assigned to: ["3","1","3"] with unmets: []
+// participant src1049 assigned to: ["2","1","1"] with unmets: []
+// participant src1051 assigned to: ["2","2","3"] with unmets: []
+// participant src1017 assigned to: ["3","1","1"] with unmets: ["src1062"]
+// participant src1062 assigned to: ["2","3","2"] with unmets: ["src1017"]
+// participant src1025 assigned to: ["3","3","3"] with unmets: []
+// participant src1008 assigned to: ["3","2","3"] with unmets: []
