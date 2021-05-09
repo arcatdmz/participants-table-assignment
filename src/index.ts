@@ -1,21 +1,37 @@
 // input
 const numRooms = 3;
-const participantIds = [
-  "src1061",
-  "src1029",
-  "src1036",
-  "src1050",
-  "src1048",
-  "src1049",
-  "src1051",
-  "src1017",
-  "src1062",
-  "src1025",
-  "src1008",
+const participantData: [string, ParticipantCategories][] = [
+  ["src1061", "undergrad"],
+  ["src1029", "undergrad"],
+  ["src1036", "undergrad"],
+  ["src1050", "undergrad"],
+  ["src1048", "grad"],
+  ["src1049", "undergrad"],
+  ["src1051", "grad"],
+  ["src1017", "undergrad"],
+  ["src1062", "undergrad"],
+  ["src1025", "grad"],
+  ["src1008", "grad"],
 ];
-const shuffles = 6;
+const initialAssignments: [string, number][] = [
+  ["src1061", 1],
+  ["src1029", 1],
+  ["src1036", 1],
+  ["src1050", 1],
+  ["src1048", 2],
+  ["src1049", 2],
+  ["src1051", 2],
+  ["src1017", 3],
+  ["src1062", 3],
+  ["src1025", 3],
+  ["src1008", 3],
+];
+const shuffles = 4;
 
 // class def
+type ParticipantCategories = "undergrad" | "grad";
+const cats = ["grad", "undergrad"] as ParticipantCategories[];
+
 class Room {
   public static numRooms: number = 0;
   id: number;
@@ -23,12 +39,15 @@ class Room {
   constructor() {
     this.id = ++Room.numRooms;
     this.assignments = [];
+    for (let i = 0; i < shuffles; i++) {
+      this.assignments.push(new Set<Participant>());
+    }
   }
-  addAssignment(participants: Set<Participant>) {
-    this.assignments.push(participants);
-    for (const p of participants) {
-      p.assignments.push(this);
-      for (const p_ of participants) {
+  updateAssignment(attempt: number) {
+    const ps = this.assignments[attempt];
+    for (const p of ps) {
+      p.assignments[attempt] = this;
+      for (const p_ of ps) {
         p.met.add(p_);
       }
     }
@@ -48,28 +67,64 @@ class Room {
 }
 
 class Participant {
+  id: string;
+  category: ParticipantCategories;
   assignments: Room[];
   met: Set<Participant>;
-  constructor(public id: string) {
+  constructor(data: [string, ParticipantCategories]) {
     this.assignments = [];
+    for (let i = 0; i < shuffles; i++) {
+      this.assignments[i] = null;
+    }
+    this.id = data[0];
+    this.category = data[1];
     this.met = new Set([this]);
+  }
+  metInCategory() {
+    return [...participants].filter(
+      (p) => p.category === this.category && this.met.has(p)
+    );
   }
   unmet() {
     return [...participants].filter((p) => !this.met.has(p));
   }
+  unmetInCategory() {
+    return [...participants].filter(
+      (p) => p.category === this.category && !this.met.has(p)
+    );
+  }
   printUnmet() {
     const unmet = this.unmet();
-    console.log(`participant ${this.id} unmet:`);
+    Participant.printParticipants(unmet, `participant ${this.id} unmet:`);
+  }
+  printUnmetInCategory() {
+    const unmet = this.unmetInCategory();
+    Participant.printParticipants(
+      unmet,
+      `participant ${this.id} unmet in category:`
+    );
+  }
+  printAssignments() {
     console.log(
-      JSON.stringify(
-        unmet.map((unmet) => unmet.toString()),
-        null,
-        ""
-      )
+      `participant ${this.id} assigned to: ${JSON.stringify(
+        this.assignments.map((r) => String(r?.id || "-"))
+      )}`
     );
   }
   toString() {
     return this.id;
+  }
+  static printParticipants(participants: Participant[], title?: string) {
+    if (title) {
+      console.log(title);
+    }
+    console.log(
+      JSON.stringify(
+        participants.map((unmet) => unmet.toString()),
+        null,
+        ""
+      )
+    );
   }
 }
 
@@ -81,64 +136,100 @@ for (let i = 0; i < numRooms; i++) {
 }
 
 const participantsList: Participant[] = [];
-for (const pid of participantIds) {
-  const p = new Participant(pid);
+for (const pData of participantData) {
+  const p = new Participant(pData);
   participantsList.push(p);
 }
 const participants = new Set(participantsList);
 
 // initial assignment
-const numPerRoom = Math.ceil(participantIds.length / numRooms);
-for (let i = 0; i < numRooms; i++) {
-  const r = rooms[i];
-  const assignment = new Set(
-    participantsList.slice(
-      numPerRoom * i,
-      Math.min(participantIds.length, numPerRoom * (i + 1))
-    )
-  );
-  r.addAssignment(assignment);
+const numPerRoom = Math.ceil(participantData.length / numRooms);
+// for (let i = 0; i < numRooms; i++) {
+//   const r = rooms[i];
+//   participantsList
+//     .slice(
+//       numPerRoom * i,
+//       Math.min(participantData.length, numPerRoom * (i + 1))
+//     )
+//     .forEach((p) => r.assignments[0].add(p));
+//   r.updateAssignment(0);
+// }
+for (const [pid, currentRoomPlusOne] of initialAssignments) {
+  let currentAssignment = rooms[currentRoomPlusOne - 1].assignments[0];
+  currentAssignment.add(participantsList.find((p) => p.id === pid));
 }
+rooms.forEach((room) => room.updateAssignment(0));
 
 // shuffle
 console.log("stats:");
-for (let attempt = 0; attempt + 1 < shuffles; attempt++) {
-  let currentRoom = 0;
-  let currentAssignment = new Set<Participant>();
-  const prioritizedParticipantsList = participantsList.sort((a, b) => {
-    return a.met.size - b.met.size;
-  });
-  console.log(
-    JSON.stringify(
-      prioritizedParticipantsList.map((p) => `${p.id}(met:${p.met.size})`)
-    )
-  );
-  for (const p of prioritizedParticipantsList) {
-    const unmet = p.unmet();
+for (let attempt = 1; attempt < shuffles; attempt++) {
+  // sort category according to the number of the current unsatisfied conditions
+  const sortedCats = (cats.map((cat) => [
+    cat,
+    participantsList
+      .filter((p) => p.category === cat)
+      .reduce((p, c, _, arr) => p + c.unmetInCategory().length / arr.length, 0),
+  ]) as [ParticipantCategories, number][])
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat]) => cat);
 
-    // all unmet participants
-    const sizeUnmet = unmet.length;
-    // number of participants that can fit in the current room (w/o me)
-    const sizeRoom = numPerRoom - currentAssignment.size - 1;
+  for (const cat of sortedCats) {
+    const prioritizedParticipantsList = participantsList
+      .filter((p) => p.category === cat)
+      .sort((a, b) => {
+        return a.metInCategory().length - b.metInCategory().length;
+      });
+    console.log(
+      cat,
+      JSON.stringify(
+        prioritizedParticipantsList.map(
+          (p) => `${p.id}(met:${p.metInCategory().length})`
+        )
+      )
+    );
 
-    // add myself
-    currentAssignment.add(p);
+    let currentRoom = cat === "grad" ? 0 : numRooms - 1;
+    let currentAssignment = rooms[currentRoom].assignments[attempt];
+    for (const p of prioritizedParticipantsList) {
+      // skip already assigned participant
+      if (p.assignments[attempt]) {
+        continue;
+      }
 
-    // add others
-    const size = Math.min(sizeUnmet, sizeRoom);
-    unmet.slice(0, size).forEach((p_) => currentAssignment.add(p_));
+      // all unmet participants (+ me = 1)
+      const unmet = p
+        .unmetInCategory()
+        .filter((p_) => !p_.assignments[attempt]);
+      const sizeUnmet = unmet.length + 1;
 
-    // check room size
-    if (currentAssignment.size >= numPerRoom) {
-      rooms[currentRoom++].addAssignment(currentAssignment);
-      currentAssignment = new Set<Participant>();
-      if (currentRoom >= rooms.length) {
-        break;
+      // number of participants that can fit in the current room
+      const sizeRoom = numPerRoom - currentAssignment.size;
+
+      const size = Math.min(sizeUnmet, sizeRoom);
+      if (size > 0) {
+        // add myself
+        currentAssignment.add(p);
+
+        // add others
+        unmet.slice(0, size - 1).forEach((p_) => currentAssignment.add(p_));
+
+        // update "met" list
+        rooms[currentRoom].updateAssignment(attempt);
+
+        // check room size and move to the next room
+        if (currentAssignment.size >= numPerRoom) {
+          if (cat === "grad") {
+            currentRoom++;
+          } else {
+            currentRoom--;
+          }
+          if (currentRoom >= rooms.length || currentRoom < 0) {
+            break;
+          }
+          currentAssignment = rooms[currentRoom].assignments[attempt];
+        }
       }
     }
-  }
-  if (currentRoom < rooms.length) {
-    rooms[currentRoom].addAssignment(currentAssignment);
   }
 }
 console.log();
@@ -148,44 +239,56 @@ for (const r of rooms) {
   r.print();
   console.log();
 }
-const noUnmet = participantsList.reduce((p, c) => p && (c.met.size === participants.size), true);
+const noUnmet = participantsList.reduce(
+  (p, c) => p && c.unmetInCategory().length <= 0,
+  true
+);
 if (noUnmet) {
-  console.log("every participant can meet all the other participants")
+  console.log(
+    "every participant can meet all the other participants in the same category"
+  );
+  participants.forEach((p) => p.printAssignments());
 } else {
-  participants.forEach(p => p.printUnmet());
+  participants.forEach((p) => p.printUnmetInCategory());
 }
 
 // ---program output ---
 //
 // stats:
-// ["src1062(met:3)","src1025(met:3)","src1008(met:3)","src1061(met:4)","src1029(met:4)","src1036(met:4)","src1050(met:4)","src1048(met:4)","src1049(met:4)","src1051(met:4)","src1017(met:4)"]
-// ["src1050(met:4)","src1048(met:4)","src1049(met:4)","src1051(met:4)","src1017(met:4)","src1062(met:6)","src1025(met:6)","src1008(met:6)","src1061(met:7)","src1029(met:7)","src1036(met:7)"]
-// ["src1017(met:4)","src1051(met:5)","src1062(met:6)","src1025(met:6)","src1008(met:6)","src1050(met:7)","src1048(met:8)","src1049(met:8)","src1061(met:9)","src1029(met:9)","src1036(met:9)"]
-// ["src1025(met:6)","src1008(met:6)","src1017(met:7)","src1051(met:8)","src1050(met:8)","src1062(met:9)","src1048(met:9)","src1049(met:9)","src1061(met:11)","src1029(met:11)","src1036(met:11)"]
-// ["src1051(met:8)","src1008(met:9)","src1025(met:10)","src1017(met:10)","src1062(met:10)","src1050(met:11)","src1048(met:11)","src1049(met:11)","src1061(met:11)","src1029(met:11)","src1036(met:11)"]
-// 
+// undergrad ["src1049(met:1)","src1017(met:2)","src1062(met:2)","src1061(met:4)","src1029(met:4)","src1036(met:4)","src1050(met:4)"]
+// grad ["src1048(met:2)","src1051(met:2)","src1025(met:2)","src1008(met:2)"]
+// undergrad ["src1017(met:3)","src1062(met:3)","src1049(met:4)","src1061(met:5)","src1029(met:5)","src1036(met:5)","src1050(met:6)"]
+// grad ["src1048(met:4)","src1051(met:4)","src1025(met:4)","src1008(met:4)"]
+// undergrad ["src1062(met:4)","src1061(met:6)","src1029(met:6)","src1036(met:6)","src1049(met:6)","src1017(met:6)","src1050(met:7)"]
+// grad ["src1048(met:4)","src1051(met:4)","src1025(met:4)","src1008(met:4)"]
+//
 // room 1 assignments:
 // ["src1061","src1029","src1036","src1050"]
-// ["src1062","src1061","src1029","src1036"]
-// ["src1050","src1048","src1049","src1051"]
-// ["src1017","src1061","src1029","src1036"]
-// ["src1025","src1050","src1048","src1049"]
-// ["src1051","src1062","src1025","src1008"]
-// 
+// ["src1048","src1025","src1008","src1051"]
+// ["src1048","src1051","src1025","src1008"]
+// ["src1048","src1051","src1025","src1008"]
+//
 // room 2 assignments:
-// ["src1048","src1049","src1051","src1017"]
-// ["src1025","src1061","src1029","src1036"]
-// ["src1048","src1061","src1029","src1036"]
-// ["src1051","src1061","src1029","src1036"]
-// ["src1008","src1050","src1048","src1049"]
-// ["src1008","src1017","src1025","src1062"]
-// 
+// ["src1048","src1049","src1051"]
+// ["src1017","src1050","src1062"]
+// ["src1062","src1049","src1050"]
+// ["src1049","src1017","src1050"]
+//
 // room 3 assignments:
-// ["src1062","src1025","src1008"]
-// ["src1008","src1061","src1029","src1036"]
+// ["src1017","src1062","src1025","src1008"]
 // ["src1049","src1061","src1029","src1036"]
-// ["src1062","src1050","src1048","src1049"]
-// ["src1017","src1050","src1062","src1025"]
-// ["src1050","src1048","src1049","src1061"]
-// 
-// every participant can meet all the other participants
+// ["src1017","src1061","src1029","src1036"]
+// ["src1062","src1061","src1029","src1036"]
+//
+// every participant can meet all the other participants in the same category
+// participant src1061 assigned to: ["1","3","3","3"]
+// participant src1029 assigned to: ["1","3","3","3"]
+// participant src1036 assigned to: ["1","3","3","3"]
+// participant src1050 assigned to: ["1","2","2","2"]
+// participant src1048 assigned to: ["2","1","1","1"]
+// participant src1049 assigned to: ["2","3","2","2"]
+// participant src1051 assigned to: ["2","1","1","1"]
+// participant src1017 assigned to: ["3","2","3","2"]
+// participant src1062 assigned to: ["3","2","2","3"]
+// participant src1025 assigned to: ["3","1","1","1"]
+// participant src1008 assigned to: ["3","1","1","1"]
