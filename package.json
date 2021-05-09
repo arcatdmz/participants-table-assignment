@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "handcraft": "cross-env DEBUG=* node dist/handcraft.js",
+    "random": "cross-env DEBUG=* node dist/random.js"
   },
   "repository": {
     "type": "git",
@@ -20,8 +21,11 @@
   },
   "homepage": "https://github.com/arcatdmz/participants-table-assignment#readme",
   "devDependencies": {
-    "@types/collections": "^5.1.1",
+    "@types/debug": "^4.1.5",
+    "cross-env": "^7.0.3",
     "typescript": "^4.2.4"
   },
-  "dependencies": {}
+  "dependencies": {
+    "debug": "^4.3.1"
+  }
 }

@@ -1,3 +1,6 @@
+import debug from "debug";
+const log = debug("participants-table-assignment");
+
 // input
 const numRooms = 3;
 const participantData: [string, ParticipantCategories][] = [
@@ -26,7 +29,7 @@ const initialAssignments: [string, number][] = [
   ["src1025", 3],
   ["src1008", 3],
 ];
-const shuffles = 4;
+const shuffles = 3;
 
 // class def
 type ParticipantCategories = "undergrad" | "grad";
@@ -108,6 +111,8 @@ class Participant {
     console.log(
       `participant ${this.id} assigned to: ${JSON.stringify(
         this.assignments.map((r) => String(r?.id || "-"))
+      )} with unmets: ${JSON.stringify(
+        this.unmetInCategory().map((p) => p.id)
       )}`
     );
   }
@@ -161,7 +166,7 @@ for (const [pid, currentRoomPlusOne] of initialAssignments) {
 rooms.forEach((room) => room.updateAssignment(0));
 
 // shuffle
-console.log("stats:");
+log("stats:");
 for (let attempt = 1; attempt < shuffles; attempt++) {
   // sort category according to the number of the current unsatisfied conditions
   const sortedCats = (cats.map((cat) => [
@@ -179,12 +184,11 @@ for (let attempt = 1; attempt < shuffles; attempt++) {
       .sort((a, b) => {
         return a.metInCategory().length - b.metInCategory().length;
       });
-    console.log(
+    log(
+      "%s %o",
       cat,
-      JSON.stringify(
-        prioritizedParticipantsList.map(
-          (p) => `${p.id}(met:${p.metInCategory().length})`
-        )
+      prioritizedParticipantsList.map(
+        (p) => `${p.id}(met:${p.metInCategory().length})`
       )
     );
 
@@ -232,63 +236,39 @@ for (let attempt = 1; attempt < shuffles; attempt++) {
     }
   }
 }
-console.log();
 
 // print
 for (const r of rooms) {
   r.print();
   console.log();
 }
-const noUnmet = participantsList.reduce(
-  (p, c) => p && c.unmetInCategory().length <= 0,
-  true
-);
-if (noUnmet) {
-  console.log(
-    "every participant can meet all the other participants in the same category"
-  );
-  participants.forEach((p) => p.printAssignments());
-} else {
-  participants.forEach((p) => p.printUnmetInCategory());
-}
+participants.forEach((p) => p.printAssignments());
 
 // ---program output ---
-//
-// stats:
-// undergrad ["src1049(met:1)","src1017(met:2)","src1062(met:2)","src1061(met:4)","src1029(met:4)","src1036(met:4)","src1050(met:4)"]
-// grad ["src1048(met:2)","src1051(met:2)","src1025(met:2)","src1008(met:2)"]
-// undergrad ["src1017(met:3)","src1062(met:3)","src1049(met:4)","src1061(met:5)","src1029(met:5)","src1036(met:5)","src1050(met:6)"]
-// grad ["src1048(met:4)","src1051(met:4)","src1025(met:4)","src1008(met:4)"]
-// undergrad ["src1062(met:4)","src1061(met:6)","src1029(met:6)","src1036(met:6)","src1049(met:6)","src1017(met:6)","src1050(met:7)"]
-// grad ["src1048(met:4)","src1051(met:4)","src1025(met:4)","src1008(met:4)"]
 //
 // room 1 assignments:
 // ["src1061","src1029","src1036","src1050"]
 // ["src1048","src1025","src1008","src1051"]
-// ["src1048","src1051","src1025","src1008"]
 // ["src1048","src1051","src1025","src1008"]
 //
 // room 2 assignments:
 // ["src1048","src1049","src1051"]
 // ["src1017","src1050","src1062"]
 // ["src1062","src1049","src1050"]
-// ["src1049","src1017","src1050"]
 //
 // room 3 assignments:
 // ["src1017","src1062","src1025","src1008"]
 // ["src1049","src1061","src1029","src1036"]
 // ["src1017","src1061","src1029","src1036"]
-// ["src1062","src1061","src1029","src1036"]
 //
-// every participant can meet all the other participants in the same category
-// participant src1061 assigned to: ["1","3","3","3"]
-// participant src1029 assigned to: ["1","3","3","3"]
-// participant src1036 assigned to: ["1","3","3","3"]
-// participant src1050 assigned to: ["1","2","2","2"]
-// participant src1048 assigned to: ["2","1","1","1"]
-// participant src1049 assigned to: ["2","3","2","2"]
-// participant src1051 assigned to: ["2","1","1","1"]
-// participant src1017 assigned to: ["3","2","3","2"]
-// participant src1062 assigned to: ["3","2","2","3"]
-// participant src1025 assigned to: ["3","1","1","1"]
-// participant src1008 assigned to: ["3","1","1","1"]
+// participant src1061 assigned to: ["1","3","3"] with unmets: ["src1062"]
+// participant src1029 assigned to: ["1","3","3"] with unmets: ["src1062"]
+// participant src1036 assigned to: ["1","3","3"] with unmets: ["src1062"]
+// participant src1050 assigned to: ["1","2","2"] with unmets: []
+// participant src1048 assigned to: ["2","1","1"] with unmets: []
+// participant src1049 assigned to: ["2","3","2"] with unmets: ["src1017"]
+// participant src1051 assigned to: ["2","1","1"] with unmets: []
+// participant src1017 assigned to: ["3","2","3"] with unmets: ["src1049"]
+// participant src1062 assigned to: ["3","2","2"] with unmets: ["src1061","src1029","src1036"]
+// participant src1025 assigned to: ["3","1","1"] with unmets: []
+// participant src1008 assigned to: ["3","1","1"] with unmets: []
